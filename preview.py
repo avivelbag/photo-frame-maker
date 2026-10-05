@@ -65,7 +65,7 @@ def render(name, out, split, res=0.1, flip=False):
     if flip:  # look at the underside
         tris = tris * np.array([1, 1, -1])
     Z, lo, hi = heightmap(tris, res)
-    img = shade(Z, res, np.array([0.13, 0.16, 0.30]), np.array([0.95, 0.78, 0.35]), split)
+    img = shade(Z, res, np.array([0.80, 0.70, 0.55]), np.array([0.95, 0.78, 0.35]), split)
     plt.imsave(out, img[::-1])
     print("wrote", out)
 
@@ -73,7 +73,21 @@ def render(name, out, split, res=0.1, flip=False):
 if __name__ == "__main__":
     pv = os.path.join(HERE, "preview")
     os.makedirs(pv, exist_ok=True)
-    render("frame.stl", os.path.join(pv, "frame_front.png"), split=8.05)
+    render("frame.stl", os.path.join(pv, "frame_front.png"), split=1e9, res=0.08)
     render("frame.stl", os.path.join(pv, "frame_back.png"), split=1e9, flip=True)
-    render("back_plate.stl", os.path.join(pv, "back_plate.png"), split=1e9, flip=True)
-    render("moon_stand.stl", os.path.join(pv, "moon_stand_top.png"), split=17.5)
+    render("stand.stl", os.path.join(pv, "stand_top.png"), split=1e9)
+
+    # moulding cross-section
+    sys.path.insert(0, HERE)
+    import frame as fr
+    d, z = np.array(fr.profile() + [fr.profile()[0]]).T
+    fig, ax = plt.subplots(figsize=(7, 3.4))
+    ax.fill(d, z, color=(0.80, 0.70, 0.55))
+    r0 = fr.BORDER - (fr.RABBET - fr.WINDOW) / 2          # photo pocket, cut from the back
+    ax.fill([r0, fr.BORDER, fr.BORDER, r0 + fr.LIP_TAPER, r0],
+            [0, 0, fr.RABBET_D + fr.LIP_TAPER, fr.RABBET_D + fr.LIP_TAPER, fr.RABBET_D], color="white")
+    ax.plot(d, z, color=(0.35, 0.25, 0.15), lw=1.2)
+    ax.set_aspect("equal"); ax.set_xlabel("mm in from outer edge"); ax.set_ylabel("height (mm)")
+    ax.set_title("Moulding profile (photo window on the right)")
+    fig.tight_layout(); fig.savefig(os.path.join(pv, "profile.png"), dpi=120)
+    print("wrote profile.png")
