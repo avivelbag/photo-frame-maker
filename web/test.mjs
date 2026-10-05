@@ -1,21 +1,19 @@
 import Module from 'manifold-3d';
-import fs from 'fs';
 import {createRequire} from 'module';
-const require = createRequire(import.meta.url);
-const FG = require('./frame-geom.js');
+const FG = createRequire(import.meta.url)('./frame-geom.js');
 const wasm = await Module(); wasm.setup();
-for (const p of [
-  {mode:'outer', w:120, h:120, border:19, overlap:2.5, stack:2.2, keyhole:true, plate:true, stand:true},
-  {mode:'photo', w:102, h:152, border:22, overlap:3, stack:2.2, keyhole:true, plate:true, stand:true},
-  {mode:'photo', w:54, h:86, border:12, overlap:2, stack:1.5, keyhole:true, plate:true, stand:true},
-]) {
-  const t0 = performance.now();
+let bad = 0;
+for (const style of Object.keys(FG.STYLES)) for (const border of [12, 19, 30, 40]) {
+  const p = {mode:'photo', w:101.6, h:152.4, border, overlap:2.5, stack:2.2, keyhole:true, plate:true, stand:true, style};
   const r = FG.build(wasm, p);
-  if (r.errors.length) { console.log('ERR', r.errors); continue; }
-  const s = Object.entries(r.parts).map(([k,m]) => {
-    const b = m.boundingBox();
-    return `${k}: ${(b.max[0]-b.min[0]).toFixed(1)}x${(b.max[1]-b.min[1]).toFixed(1)}x${(b.max[2]-b.min[2]).toFixed(1)} vol ${(m.volume()/1000).toFixed(1)} parts ${m.decompose().length} status ${m.status()}`;
+  if (r.errors.length) { console.log(style, border, 'ERR', r.errors.join(' ')); continue; }
+  const st = Object.entries(r.parts).map(([k, m]) => {
+    const ok = m.status() === 'NoError' && m.decompose().length === 1 && m.volume() > 0;
+    if (!ok) bad++;
+    return `${k}:${ok ? 'ok' : 'BAD ' + m.status() + ' parts=' + m.decompose().length}`;
   });
-  console.log(p.mode, p.w, p.h, 'keyhole', r.keyhole, (performance.now()-t0).toFixed(0)+'ms\n  '+s.join('\n  '));
-  if (p.w===120) fs.writeFileSync('js_frame.stl', Buffer.from(FG.toSTL(r.parts.frame,'frame')));
+  console.log(style.padEnd(8), String(border).padStart(2), 'depth', r.dims.maxZ.toFixed(1), 'keyhole', r.keyhole, 'frameVol', (r.parts.frame.volume()/1000).toFixed(1), st.join(' '));
 }
+// deep pocket should be refused for shallow-lipped styles
+for (const style of ['classic', 'gallery']) console.log(style, 'stack 4:', FG.build(wasm, {mode:'outer', w:120, h:120, border:19, overlap:2.5, stack:4, keyhole:true, plate:false, stand:false, style}).errors);
+console.log('bad parts:', bad);

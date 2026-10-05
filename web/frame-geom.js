@@ -21,11 +21,15 @@ const FrameGeom = (() => {
     const plateT = 2.0;
     const rabD = plateT + p.stack;                       // straight pocket depth
     return {sightW, sightH, outerW, outerH, photoW, photoH, rabW, rabH, rabD, plateT,
-            rabInset: (outerW - rabW) / 2, maxZ: 11.6};
+            rabInset: (outerW - rabW) / 2};
   }
 
-  function validate(p, d) {
+  function validate(p, d, prof) {
     const errs = [];
+    if (!errs.length && d.sightW >= 20 && p.border >= 12 && p.border <= 45) {
+      const lip = minHeight(prof, d.rabInset, p.border) - (d.rabD + 1);
+      if (lip < 1.2) errs.push(`This moulding is too shallow over the photo for a ${p.stack} mm pocket. Lower the pocket room to ${Math.max(0, p.stack - (1.2 - lip)).toFixed(1)} mm or less, or pick a deeper style.`);
+    }
     if (!(d.sightW >= 20 && d.sightH >= 20)) errs.push('The photo window would be under 20 mm. Use a bigger size or a narrower moulding.');
     if (p.border < 12) errs.push('Moulding width must be at least 12 mm.');
     if (p.border > 45) errs.push('Moulding width can be at most 45 mm.');
@@ -34,28 +38,97 @@ const FrameGeom = (() => {
     return errs;
   }
 
-  function profile(border) {
-    const k = border / REF_BORDER;
-    const arc = (cx, cz, r, a0, a1, n) => {
-      const out = [];
-      for (let i = 0; i < n; i++) {
-        const a = (a0 + (a1 - a0) * i / (n - 1)) * Math.PI / 180;
-        out.push([cx + r * Math.cos(a), cz + r * Math.sin(a)]);
-      }
-      return out;
-    };
-    let p = [[0, 0], [0, 9.0]];
-    p = p.concat(arc(2.6, 9.0, 2.6, 180, 90, 14).slice(1));
-    p.push([3.6, 11.6], [4.1, 11.0]);
-    for (let i = 1; i < 18; i++) {
-      const t = i / 17;
-      p.push([4.1 + t * 7.0, 8.8 + 2.2 * (1 - t) ** 2]);
+  const arc = (cx, cz, r, a0, a1, n) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = (a0 + (a1 - a0) * i / (n - 1)) * Math.PI / 180;
+      out.push([cx + r * Math.cos(a), cz + r * Math.sin(a)]);
     }
-    p.push([12.0, 8.8]);
-    p = p.concat(arc(13.2, 8.8, 1.2, 180, 0, 14).slice(1));
-    p.push([14.8, 8.1], [15.4, 8.1], [REF_BORDER, 6.6], [REF_BORDER, 0]);
-    // stretch horizontally to the requested moulding width (beads keep their height)
-    return p.map(([d, z]) => [d * k, z]);
+    return out;
+  };
+
+  // Each style returns the moulding cross-section as [d, z] points, d = distance in
+  // from the outer edge (0..B), z = height. It starts at [0,0] and ends at [B,0].
+  const STYLES = {
+    classic: {
+      name: 'Classic', blurb: 'Rounded outer bead, cove and a fine inner bead',
+      fn(B) {
+        const k = B / REF_BORDER;
+        let p = [[0, 0], [0, 9.0]];
+        p = p.concat(arc(2.6, 9.0, 2.6, 180, 90, 14).slice(1));
+        p.push([3.6, 11.6], [4.1, 11.0]);
+        for (let i = 1; i < 18; i++) { const t = i / 17; p.push([4.1 + t * 7.0, 8.8 + 2.2 * (1 - t) ** 2]); }
+        p.push([12.0, 8.8]);
+        p = p.concat(arc(13.2, 8.8, 1.2, 180, 0, 14).slice(1));
+        p.push([14.8, 8.1], [15.4, 8.1], [REF_BORDER, 6.6], [REF_BORDER, 0]);
+        return p.map(([d, z]) => [d * k, z]);
+      },
+    },
+    gallery: {
+      name: 'Gallery', blurb: 'Flat, deep face with crisp chamfers',
+      fn: B => [[0, 0], [0, 9.4], [0.6, 10], [B - 0.6, 10], [B, 9.4], [B, 0]],
+    },
+    bevel: {
+      name: 'Bevel', blurb: 'Slopes down toward the photo',
+      fn: B => [[0, 0], [0, 11.0], [0.8, 11.8], [3.0, 11.8], [B - 1.4, 7.4], [B - 1.0, 7.0], [B, 7.0], [B, 0]],
+    },
+    reverse: {
+      name: 'Reverse', blurb: 'Rises toward the photo, thin at the edge',
+      fn: B => [[0, 0], [0, 5.6], [0.8, 6.4], [B - 3.2, 11.2], [B - 2.2, 11.8], [B - 0.8, 11.8], [B, 11.0], [B, 0]],
+    },
+    cushion: {
+      name: 'Cushion', blurb: 'One soft, rounded dome across the width',
+      fn(B) {
+        const p = [[0, 0], [0, 7.0]];
+        for (let i = 1; i <= 30; i++) {
+          const t = i / 30;
+          p.push([t * B, 7.0 - 0.4 * t + 4.2 * Math.sin(Math.PI * t) ** 0.7]);
+        }
+        p.push([B, 0]);
+        return p;
+      },
+    },
+    reeded: {
+      name: 'Reeded', blurb: 'Flat face with parallel half-round reeds',
+      fn(B) {
+        const m = 1.2, base = 8.4, span = B - 2 * m;
+        const n = Math.max(3, Math.round(span / 3.2)), r = span / (2 * n);
+        let p = [[0, 0], [0, base - 0.4], [0.4, base], [m, base]];
+        for (let i = 0; i < n; i++) p = p.concat(arc(m + r * (2 * i + 1), base, r, 180, 0, 10).slice(1));
+        p.push([B - 0.4, base], [B, base - 0.4], [B, 0]);
+        return p;
+      },
+    },
+    stepped: {
+      name: 'Stepped', blurb: 'Three terraces stepping down to the photo',
+      fn(B) {
+        const w1 = B * 0.3, w2 = B * 0.33;
+        return [[0, 0], [0, 10.6], [0.8, 11.4], [w1 - 0.6, 11.4], [w1, 10.8], [w1, 9.6],
+                [w1 + w2 - 0.6, 9.6], [w1 + w2, 9.0], [w1 + w2, 7.6], [B - 0.5, 7.6], [B, 7.1], [B, 0]];
+      },
+    },
+  };
+
+  function profile(border, style = 'classic') {
+    return (STYLES[style] || STYLES.classic).fn(border);
+  }
+
+  // lowest point of the moulding's top surface between d0 and d1
+  function minHeight(prof, d0, d1) {
+    const top = prof.slice(1, -1);
+    let lo = Infinity;
+    const at = d => {
+      let best = -Infinity;
+      for (let i = 0; i < top.length - 1; i++) {
+        const [a, za] = top[i], [b, zb] = top[i + 1];
+        if (d < Math.min(a, b) || d > Math.max(a, b)) continue;
+        best = Math.max(best, b === a ? Math.max(za, zb) : za + (zb - za) * (d - a) / (b - a));
+      }
+      return best;
+    };
+    for (let i = 0; i <= 40; i++) lo = Math.min(lo, at(d0 + (d1 - d0) * i / 40));
+    for (const [d, z] of top) if (d >= d0 && d <= d1) lo = Math.min(lo, z);
+    return lo;
   }
 
   function ring(d, W, H, k = 8) {
@@ -107,7 +180,7 @@ const FrameGeom = (() => {
 
   function frame(wasm, p, d) {
     const {Manifold} = wasm;
-    let body = sweep(wasm, profile(p.border), d.outerW, d.outerH);
+    let body = sweep(wasm, d.prof, d.outerW, d.outerH);
 
     // photo pocket from the back, 45 deg taper under the lip
     const rab = rrect(wasm, d.rabW, d.rabH, 1.5);
@@ -127,7 +200,9 @@ const FrameGeom = (() => {
     if (p.keyhole) {
       const frameWallD = d.rabInset;                   // border depth on the back
       const travel = Math.max(0, Math.min(4.5, frameWallD - 3.5 - 1.5 - 3.5 - 2));
-      if (travel >= 2.5) {
+      const kd = frameWallD - 3.5 - 1.5;              // head centre, measured in from the top edge
+      const deepEnough = minHeight(d.prof, Math.max(0.5, kd - travel - 3.5), kd + 3.5) >= 3.6 + 1.2;
+      if (travel >= 2.5 && deepEnough) {
         const ky = d.outerH / 2 - (frameWallD - 3.5 - 1.5);   // head centre, 1.5 mm wall to the pocket
         const head = Manifold.cylinder(4.6, 3.5, 3.5, 48).translate([0, ky, -1]);
         const slot = stadium(wasm, 0, ky, 0, ky + travel, 1.8).extrude(2.6).translate([0, 0, -1]);
@@ -160,7 +235,7 @@ const FrameGeom = (() => {
     const {Manifold} = wasm;
     const L = Math.min(Math.max(d.outerW * 0.87, 60), 240), D = 46;
     const A = L * 0.635, B = 34, C = 15, lean = 12;
-    const slotW = d.maxZ + 0.6;
+    const slotW = d.maxZ + 0.6;   // thickest part of the moulding + slack
     const slab = rrect(wasm, L, D, 14).extrude(C + 1);
     const hill = Manifold.sphere(1, 192).scale([A, B, C]).add(Manifold.cube([L, D, 2], true).translate([0, 0, 1]));
     let st = slab.intersect(hill);
@@ -170,7 +245,9 @@ const FrameGeom = (() => {
 
   function build(wasm, p) {
     const d = deriveDims(p);
-    const errors = validate(p, d);
+    d.prof = profile(p.border, p.style);
+    d.maxZ = Math.max(...d.prof.map(q => q[1]));
+    const errors = validate(p, d, d.prof);
     if (errors.length) return {dims: d, errors};
     const out = {dims: d, errors: [], parts: {}};
     const f = frame(wasm, p, d);
@@ -208,7 +285,7 @@ const FrameGeom = (() => {
     return buf;
   }
 
-  return {build, toSTL, deriveDims, profile};
+  return {build, toSTL, deriveDims, profile, STYLES};
 })();
 
 if (typeof module !== 'undefined') module.exports = FrameGeom;

@@ -80,6 +80,12 @@
   input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
   .profile { width: 100%; height: 118px; display: block; background: var(--ground); border-radius: 8px; }
 
+  .styles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .style { border: 1px solid var(--line); background: var(--ground); border-radius: 8px; padding: 6px 4px 5px; cursor: pointer; display: grid; gap: 2px; justify-items: center; color: var(--ink); font: 500 11.5px var(--body); }
+  .style:hover { border-color: var(--accent); }
+  .style[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  .style:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .style svg { width: 100%; height: 30px; display: block; }
   details { border-top: 1px solid var(--line); padding-top: 12px; }
   summary { cursor: pointer; font-weight: 500; }
   details[open] summary { margin-bottom: 12px; }
@@ -147,6 +153,12 @@
           <label class="num"><span id="h-label">Photo height</span><div class="box"><input id="h" type="number" inputmode="decimal" min="20" max="400" step="0.5" value="87"><em>mm</em></div></label>
         </div>
         <p class="hint" id="size-hint">Width × height as the frame will hang. The keyhole goes on the top edge.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Moulding style</legend>
+        <div class="styles" id="styles" role="radiogroup" aria-label="Moulding style"></div>
+        <p class="hint" id="style-blurb"></p>
       </fieldset>
 
       <fieldset>
@@ -235,11 +247,47 @@ presetBox.addEventListener('click', e => {
   syncLabels(); schedule();
 });
 
+// ------------------------------------------------------------ moulding styles
+let style = 'classic';
+const styleBox = $('styles');
+function profilePath(prof, s, ox, oy) {
+  return prof.map(([x, z]) => `${(ox + x * s).toFixed(1)},${(oy - z * s).toFixed(1)}`).join(' ');
+}
+for (const [key, st] of Object.entries(FrameGeom.STYLES)) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'style'; b.dataset.style = key;
+  b.setAttribute('role', 'radio'); b.title = st.blurb;
+  const prof = FrameGeom.profile(19, key);
+  b.innerHTML = `<svg viewBox="0 0 70 30" aria-hidden="true"><polygon points="${profilePath(prof, 2.2, 14, 28)}" fill="var(--wood)" stroke="var(--ink)" stroke-opacity="0.4" stroke-width="0.6"/></svg><span>${st.name}</span>`;
+  styleBox.appendChild(b);
+}
+function syncStyles() {
+  styleBox.querySelectorAll('.style').forEach(b => {
+    const on = b.dataset.style === style;
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  });
+  $('style-blurb').textContent = FrameGeom.STYLES[style].blurb + '.';
+}
+styleBox.addEventListener('click', e => {
+  const b = e.target.closest('.style'); if (!b) return;
+  style = b.dataset.style; syncStyles(); drawProfile(params(), null); schedule();
+});
+styleBox.addEventListener('keydown', e => {
+  const keys = Object.keys(FrameGeom.STYLES);
+  const step = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1}[e.key];
+  if (!step) return;
+  e.preventDefault();
+  style = keys[(keys.indexOf(style) + step + keys.length) % keys.length];
+  syncStyles(); styleBox.querySelector(`[data-style="${style}"]`).focus();
+  drawProfile(params(), null); schedule();
+});
+
 function params() {
   const mode = document.querySelector('input[name=mode]:checked').value;
   const n = id => parseFloat($(id).value);
   return {mode, w: n('w'), h: n('h'), border: n('border'), overlap: n('overlap'), stack: n('stack'),
-          plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
+          style, plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
 }
 
 function syncLabels() {
@@ -264,8 +312,8 @@ $('form').addEventListener('change', () => { syncLabels(); schedule(); });
 // ------------------------------------------------------------ profile diagram
 function drawProfile(p, d) {
   const svg = $('profile');
-  const prof = FrameGeom.profile(p.border);
-  const B = p.border, Z = 11.6, s = 7;
+  const prof = FrameGeom.profile(p.border, p.style);
+  const B = p.border, Z = Math.max(...prof.map(q => q[1])), s = 7;
   const pad = 10, W = B * s + 2 * pad, H = Z * s + pad + 22;
   svg.setAttribute('viewBox', `0 0 ${W.toFixed(1)} ${H.toFixed(1)}`);
   const ox = pad, oy = pad + Z * s;
@@ -458,7 +506,7 @@ function showSpecs() {
     cell(`${fmt(d.outerW)} × ${fmt(d.outerH)}`, 'Outer size, mm'),
     cell(`${fmt(d.sightW)} × ${fmt(d.sightH)}`, 'Visible window, mm'),
     cell(`${fmt(d.photoW)} × ${fmt(d.photoH)}`, `Cut photo to, mm<br>${inch(d.photoW)} × ${inch(d.photoH)}`),
-    cell('11.6', 'Frame depth, mm'),
+    cell(fmt(d.maxZ), 'Frame depth, mm'),
     cell(`≈ ${fmt(g, 0)} g`, 'PLA for selected parts'),
     `<div class="spec"><b><span class="pill ${fits ? 'ok' : 'bad'}">${fits ? 'Fits' : 'Too big'}</span></b><span>P1S bed, 256 × 256 mm</span></div>`,
   ].join('');
@@ -481,14 +529,14 @@ $('form').addEventListener('submit', async e => {
   }
   const {dims: d, files, params: p} = latest;
   const zip = new JSZip();
-  const tag = `${fmt(d.outerW)}x${fmt(d.outerH)}mm`;
+  const tag = `${p.style}-${fmt(d.outerW)}x${fmt(d.outerH)}mm`;
   for (const [n, buf] of Object.entries(files)) zip.file(n, buf);
   zip.file('README.txt', [
     `Moulded photo frame, ${fmt(d.outerW)} x ${fmt(d.outerH)} mm outer`,
     ``,
     `Cut the photo to:  ${fmt(d.photoW)} x ${fmt(d.photoH)} mm`,
     `Visible window:    ${fmt(d.sightW)} x ${fmt(d.sightH)} mm`,
-    `Moulding width:    ${p.border} mm`,
+    `Moulding:          ${FrameGeom.STYLES[p.style].name}, ${p.border} mm wide`,
     `Pocket room:       ${p.stack} mm in front of the back plate (photo + clear sheet or card)`,
     ``,
     `Printing (Bambu P1S, PLA): frame.stl back face down; back_plate.stl and stand.stl as exported.`,
@@ -509,6 +557,7 @@ $('form').addEventListener('submit', async e => {
 });
 
 syncLabels();
+syncStyles();
 drawProfile(params(), null);
 build();
 </script>
