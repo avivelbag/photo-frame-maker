@@ -92,4 +92,4 @@ python frame.py && python preview.py
 
 ## History
 
-The first version was a space-themed frame with raised artwork: Saturn, Orion, a rocket and a starfield. It was replaced with plain moulding; that version is still in git history (`7bf5d9b`). That's why the repo is called `space-frame`.
+The first version was a space-themed frame with raised artwork: Saturn, Orion, a rocket and a starfield. It was replaced with plain moulding; that version is still in git history (`7bf5d9b`).
