@@ -1,55 +1,95 @@
-# Frame
+# Photo Frame Maker
 
-A classic moulded photo frame, 120 × 120 mm, made for the Bambu P1S. `frame.py` generates every part using manifold3d and shapely. `preview.py` renders the images in `preview/`.
+Parametric, moulded photo frames for 3D printing on a Bambu P1S. Pick a photo size (or a finished frame size) and a moulding style, then download print-ready STLs for three parts: the frame, a snap-in back plate and a desk stand.
 
-![front](preview/frame_front.png)
-![profile](preview/profile.png)
+**Use it in the browser:** https://claude.ai/artifact/RCTT4QFAspR1fjSfJS8wiC
 
-The moulding is 19 mm wide and 11.6 mm tall. Working inward from the outer edge it has a rounded outer bead, a sweeping cove, a fine inner bead and a bevelled sight edge around the photo. The corners are mitred.
+![120 mm Classic frame](preview/frame_front.png)
 
-## Parts (`stl/`)
+## What's here
 
-| File | What | Print orientation |
+| Path | What it is |
+|---|---|
+| `web/` | The browser generator, which is the main tool. Source for the page linked above. |
+| `frame.py` | The original Python generator. It makes the fixed 120 × 120 mm Classic frame. |
+| `stl/` | Ready-made STLs from `frame.py`: `frame.stl`, `back_plate.stl` and `stand.stl`. |
+| `preview.py`, `preview/` | Top-down renders, the Classic cross-section and the style sheet below. |
+
+## Moulding styles
+
+![The seven moulding profiles](preview/styles.png)
+
+| Style | Look | Depth |
 |---|---|---|
-| `frame.stl` | the frame | back face down, as exported |
-| `back_plate.stl` | snap-in back | as exported (catches print on the bed side) |
-| `stand.stl` | smooth desk stand that leans the frame back 12° | as exported |
+| Classic | Rounded outer bead, sweeping cove, fine inner bead | 11.6 mm |
+| Gallery | Flat, deep face with crisp chamfers | 10 mm |
+| Bevel | Thick at the outside, slopes down to the photo | 11.8 mm |
+| Reverse | Thin at the outer edge, rises toward the photo | 11.8 mm |
+| Cushion | One soft rounded dome across the width | 11 mm |
+| Reeded | Flat face with half-round reeds; wider mouldings get more reeds | 10 mm |
+| Stepped | Three terraces stepping down to the photo | 11.4 mm |
 
-None of the parts need supports. Every surface of the moulding faces upward. Under the lip above the photo pocket, a 45° taper keeps the overhang to 2 mm, and the photo hides it anyway.
+Every style stretches to the moulding width you choose, from 12 to 40 mm. All corners are mitred.
 
-## Photo
+## Using the web generator
 
-- Visible window: 82 × 82 mm.
-- Cut the photo to **87 × 87 mm**.
-- The pocket has 2.2 mm of room in front of the back plate. Fill it with the photo plus a 1 mm clear sheet or a piece of card.
-- The back plate snaps in with two flexing catches on its edges. To remove it, pry at the notch on the bottom edge.
+1. **Size the frame.** Choose *Photo size* or *Outer frame size*, then enter width × height in mm as the frame will hang. There are presets for 4×6 in, 5×7 in, 3.5×5 in, Instax Mini, Instax Square, Polaroid and a 120 mm square.
+2. **Choose the moulding.** Pick a style and a width.
+3. **Fit details** (optional):
+   - *Photo overlap* is how much of each photo edge the moulding covers. The default is 2.5 mm.
+   - *Room for photo + glazing* is how much fits in front of the back plate. The default is 2.2 mm.
+4. **Choose the parts:** back plate, stand and keyhole.
+5. **Check the preview:**
+   - The 3D view lets you drag to turn and scroll to zoom. Tabs switch between the frame front, frame back, back plate and stand.
+   - Readouts show the outer size, the visible window, the photo cut size (mm and inches), the frame depth, a rough PLA weight, and whether each part fits the P1S bed.
+6. **Download.** You get a ZIP with the STLs and a README.txt that records the photo cut size and print notes. Downloads are ZIPs because the page can't save `.stl` files directly.
 
-## Hanging
+The page refuses settings that can't be printed well:
+- A window under 20 mm.
+- A pocket so deep that the lip over the photo would be thinner than 1.2 mm. The message tells you the deepest pocket that works.
+- A keyhole where the frame is too thin or too narrow behind it. The keyhole is left off and the page says so.
 
-A keyhole in the back of the top border takes a screw with a head up to 7 mm and a shank up to 3.6 mm.
+## Design details
 
-## Suggested settings
+- **Photo pocket:** cut from the back, 1 mm larger than the photo. It has a 45° taper under the lip, so the overhang is only about 2 mm and needs no supports.
+- **Back plate:** 2 mm thick. Slits along its left and right edges turn them into flexible beams, each carrying a ramped catch that clicks into a groove in the pocket wall. It prints inner-face-down so the ramps need no support. To remove it, pry at the notch in the bottom edge.
+- **Keyhole:** centred in the top border, for a screw with a head up to 7 mm and a shank up to 3.6 mm.
+- **Stand:** a smooth, pebble-shaped base whose slot leans the frame back 12°. The slot width follows the depth of the chosen style.
 
-- Layers: 0.12–0.16 mm, so the cove and beads come out smooth.
-- 3 walls, 15% infill.
-- Filament: a wood-fill PLA, or a matte or silk PLA, looks great with this profile.
+## Printing
 
-## Regenerate
+- Print the frame **back face down**, and the back plate and stand as exported. No supports.
+- Use 0.12–0.16 mm layers so curves and beads come out smooth. 3 walls, 15% infill.
+- Wood-fill, matte or silk PLA all suit the mouldings.
+- **Untested:** none of this has been printed yet. Print a small frame such as Instax Mini first to check:
+  - the back-plate snap fit: 0.2 mm clearance, 0.6 mm catches;
+  - the stand slot: 0.6 mm slack.
+
+## Development
+
+**Browser generator**
+
+```
+cd web
+npm install            # manifold-3d 3.2.1
+python3 build.py       # writes photo-frame-maker.html, about 740 KB, fully self-contained
+node test.mjs          # builds every style at 12/19/30/40 mm and checks each part is one valid solid
+```
+
+- `frame-geom.js`: the geometry. Each style is a cross-section that gets swept around the window. The pocket, grooves, keyhole and stand are made with manifold boolean operations.
+- `template.html`: the page, which uses three.js r128 and JSZip from cdnjs.
+- `build.py`: inlines the manifold glue code, the WASM binary (as base64) and `frame-geom.js` into the template.
+- Each rebuild in the page creates a fresh WASM instance, so memory doesn't grow while you drag sliders.
+
+To publish a new version, republish `photo-frame-maker.html` to the artifact URL above.
+
+**Python generator**
 
 ```
 pip install manifold3d shapely numpy matplotlib
 python frame.py && python preview.py
 ```
 
-## Web interface
+## History
 
-`web/` holds a browser version of the generator: pick a photo or outer size, preview it in 3D and download a ZIP of STLs. It's published as an artifact at https://claude.ai/artifact/RCTT4QFAspR1fjSfJS8wiC.
-
-- `frame-geom.js` is the JS port of `frame.py`, plus six more moulding styles (Gallery, Bevel, Reverse, Cushion, Reeded, Stepped). It runs on manifold-3d's WASM build.
-- `template.html` is the page.
-- `build.py` inlines the manifold glue, the WASM binary and the geometry file into `photo-frame-maker.html`.
-- `test.mjs` builds every style at four moulding widths in Node as a check.
-
-```
-cd web && npm install && python3 build.py && node test.mjs
-```
+The first version was a space-themed frame with raised artwork: Saturn, Orion, a rocket and a starfield. It was replaced with plain moulding; that version is still in git history (`7bf5d9b`). That's why the repo is called `space-frame`.
