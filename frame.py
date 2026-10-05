@@ -28,6 +28,10 @@ LIP_TAPER = 1.0        # 45 deg underside taper on the lip
 PLATE_T = 2.0          # back plate thickness
 CLEAR = 0.2            # per-side fit clearance
 CORNER_R = 0.8         # corner rounding along the mitre
+# back-plate snap (frame coords): full-reach band SNAP_SHELF..SNAP_BAND, lead-in ramp above it
+SNAP_SHELF, SNAP_BAND = 0.7, 1.2
+SNAP_REACH = 1.0       # past the plate edge = 0.8 mm past the pocket wall
+GROOVE_DEPTH = 1.5
 EPS = 0.01
 
 BORDER = (OUTER - WINDOW) / 2      # 19 mm of moulding
@@ -117,7 +121,12 @@ def frame():
     body -= extrude(rab, LIP_TAPER, RABBET_D, (s, s))
 
     # snap grooves for the back-plate catches (left + right walls)
-    g = Manifold.cube((1.0, 20, 1.4)).translate((RABBET / 2 - 0.1, -10, 0.9))
+    # (45 deg groove ceiling, so no overhang)
+    from shapely.geometry import Polygon
+    w = RABBET / 2
+    gp = Polygon([(w - 0.1, SNAP_SHELF), (w + GROOVE_DEPTH, SNAP_SHELF), (w + GROOVE_DEPTH, SNAP_BAND),
+                  (w - 0.1, SNAP_BAND + GROOVE_DEPTH + 0.1)])
+    g = Manifold.extrude(to_cs(gp), 20).rotate((90, 0, 0)).translate((0, 10, 0))
     body -= g + g.mirror((1, 0, 0))
 
     # pry notch, bottom centre, to pop the back plate out
@@ -137,13 +146,14 @@ def back_plate():
     so it prints inner-face-down and the catch ramps need no support."""
     side = RABBET - 2 * CLEAR
     plate = extrude(rrect(side, side, 1.3), PLATE_T)
-    # slits turn each side edge into a flexible beam carrying a catch
+    # slits turn each side edge into a 2 mm beam, fixed at both ends, that flexes inward
     for s in (-1, 1):
-        slit = LineString([(s * (side / 2 - 2.0), -22), (s * (side / 2 - 2.0), 22)]).buffer(0.6)
-        plate -= extrude(slit, PLATE_T + 2, -1)
+        x = s * (side / 2 - 2.0 - 0.7)
+        plate -= extrude(LineString([(x, -22), (x, 22)]).buffer(0.7), PLATE_T + 2, -1)
     e = side / 2
     from shapely.geometry import Polygon
-    prof = Polygon([(e - 0.3, 0.9), (e + 0.6, 0.9), (e + 0.6, 1.2), (e, PLATE_T), (e - 0.3, PLATE_T)])
+    prof = Polygon([(e - 0.3, SNAP_SHELF), (e + SNAP_REACH, SNAP_SHELF), (e + SNAP_REACH, SNAP_BAND),
+                    (e, PLATE_T), (e - 0.3, PLATE_T)])
     catch = Manifold.extrude(to_cs(prof), 16).rotate((90, 0, 0)).translate((0, 8, 0))
     plate += catch + catch.mirror((1, 0, 0))
     return plate.rotate((180, 0, 0)).translate((0, 0, PLATE_T))

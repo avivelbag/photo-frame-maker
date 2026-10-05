@@ -39,6 +39,7 @@ Every style stretches to the moulding width you choose, from 12 to 40 mm. All co
    - *Photo overlap* is how much of each photo edge the moulding covers. The default is 2.5 mm.
    - *Room for photo + glazing* is how much fits in front of the back plate. The default is 2.2 mm.
 4. **Choose the parts:** back plate, stand and keyhole.
+   - *Back plate snap* (Looser / Standard / Tighter) adjusts how hard the back plate grips.
 5. **Check the preview:**
    - The 3D view lets you drag to turn and scroll to zoom. Tabs switch between the frame front, frame back, back plate and stand.
    - Readouts show the outer size, the visible window, the photo cut size (mm and inches), the frame depth, a rough PLA weight, and whether each part fits the P1S bed.
@@ -52,7 +53,12 @@ The page refuses settings that can't be printed well:
 ## Design details
 
 - **Photo pocket:** cut from the back, 1 mm larger than the photo. It has a 45° taper under the lip, so the overhang is only about 2 mm and needs no supports.
-- **Back plate:** 2 mm thick. Slits along its left and right edges turn them into flexible beams, each carrying a ramped catch that clicks into a groove in the pocket wall. It prints inner-face-down so the ramps need no support. To remove it, pry at the notch in the bottom edge.
+- **Back plate:** 2 mm thick. Slits along its left and right edges turn them into flexible beams, each about 2 mm wide. Each beam carries a catch that clicks into a groove in the pocket wall.
+  - The catch reaches 0.8 mm past the pocket wall. Its gripping edge is 0.5 mm tall, which is 2–3 layers at 0.2 mm, and above that is a ramp that guides it in.
+  - The groove has a 45° ceiling, so it prints without overhang.
+  - The plate prints inner-face-down so the ramps need no support.
+  - *Back plate snap* in the web generator moves the catches 0.2 mm looser or tighter to suit your printer.
+  - To remove the plate, pry at the notch in the bottom edge.
 - **Keyhole:** centred in the top border, for a screw with a head up to 7 mm and a shank up to 3.6 mm.
 - **Stand:** a smooth, pebble-shaped base whose slot leans the frame back 12°. The slot width follows the depth of the chosen style.
 
@@ -61,9 +67,11 @@ The page refuses settings that can't be printed well:
 - Print the frame **back face down**, and the back plate and stand as exported. No supports.
 - Use 0.12–0.16 mm layers so curves and beads come out smooth. 3 walls, 15% infill.
 - Wood-fill, matte or silk PLA all suit the mouldings.
-- **Untested:** none of this has been printed yet. Print a small frame such as Instax Mini first to check:
-  - the back-plate snap fit: 0.2 mm clearance, 0.6 mm catches;
-  - the stand slot: 0.6 mm slack.
+- **Print history:**
+  - The first print (2026-10-05) showed the original snap was far too weak. Its catches only reached 0.4 mm past the wall, and the back plate barely held.
+  - The snap was redesigned as described under *Back plate* above. The redesign hasn't been printed yet.
+  - If the plate is too hard to press in, or still loose, change *Back plate snap* in the web generator.
+  - The stand slot (0.6 mm slack) is also unprinted.
 
 ## Development
 
@@ -74,6 +82,7 @@ cd web
 npm install            # manifold-3d 3.2.1
 python3 build.py       # writes photo-frame-maker.html, about 740 KB, fully self-contained
 node test.mjs          # builds every style at 12/19/30/40 mm and checks each part is one valid solid
+node fitcheck.mjs      # seats the back plate in the frame: no collision, and how far the catches reach
 ```
 
 - `frame-geom.js`: the geometry. Each style is a cross-section that gets swept around the window. The pocket, grooves, keyhole and stand are made with manifold boolean operations.

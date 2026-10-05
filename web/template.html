@@ -54,6 +54,7 @@
 
   .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--ground); border-radius: 8px; padding: 3px; gap: 3px; }
   .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg3 { grid-template-columns: repeat(3, 1fr); }
   .seg label { text-align: center; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-weight: 500; color: var(--muted); }
   .seg input:checked + label { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
   .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -176,6 +177,13 @@
           <label class="num"><span>Photo overlap per side</span><div class="box"><input id="overlap" type="number" min="1" max="8" step="0.5" value="2.5"><em>mm</em></div></label>
           <label class="num"><span>Room for photo + glazing</span><div class="box"><input id="stack" type="number" min="0.5" max="4" step="0.1" value="2.2"><em>mm</em></div></label>
         </div>
+        <div class="label" style="margin-top:12px">Back plate snap</div>
+        <div class="seg seg3" role="radiogroup" aria-label="Back plate snap">
+          <input type="radio" name="fit" id="fit-loose" value="-0.2"><label for="fit-loose">Looser</label>
+          <input type="radio" name="fit" id="fit-std" value="0" checked><label for="fit-std">Standard</label>
+          <input type="radio" name="fit" id="fit-tight" value="0.2"><label for="fit-tight">Tighter</label>
+        </div>
+        <p class="hint" style="margin-top:8px">If the back plate is hard to press in, choose Looser. If it falls out, choose Tighter. Each step moves the catches 0.2 mm.</p>
         <p class="hint" style="margin-top:8px">The moulding covers the overlap on each edge of the photo. The pocket depth is how much can sit in front of the back plate: the photo plus an optional clear sheet or card.</p>
       </details>
 
@@ -287,7 +295,7 @@ function params() {
   const mode = document.querySelector('input[name=mode]:checked').value;
   const n = id => parseFloat($(id).value);
   return {mode, w: n('w'), h: n('h'), border: n('border'), overlap: n('overlap'), stack: n('stack'),
-          style, plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
+          style, fit: parseFloat(document.querySelector('input[name=fit]:checked').value), plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
 }
 
 function syncLabels() {
@@ -538,6 +546,7 @@ $('form').addEventListener('submit', async e => {
     `Visible window:    ${fmt(d.sightW)} x ${fmt(d.sightH)} mm`,
     `Moulding:          ${FrameGeom.STYLES[p.style].name}, ${p.border} mm wide`,
     `Pocket room:       ${p.stack} mm in front of the back plate (photo + clear sheet or card)`,
+    `Back plate snap:   ${p.fit > 0 ? 'Tighter' : p.fit < 0 ? 'Looser' : 'Standard'}`,
     ``,
     `Printing (Bambu P1S, PLA): frame.stl back face down; back_plate.stl and stand.stl as exported.`,
     `No supports needed. 0.12-0.16 mm layers keep the cove and beads smooth. 3 walls, 15% infill.`,

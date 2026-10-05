@@ -4,7 +4,7 @@ const FG = createRequire(import.meta.url)('./frame-geom.js');
 const wasm = await Module(); wasm.setup();
 let bad = 0;
 for (const style of Object.keys(FG.STYLES)) for (const border of [12, 19, 30, 40]) {
-  const p = {mode:'photo', w:101.6, h:152.4, border, overlap:2.5, stack:2.2, keyhole:true, plate:true, stand:true, style};
+  const p = {mode:'photo', w:101.6, h:152.4, border, overlap:2.5, stack:2.2, keyhole:true, plate:true, stand:true, style, fit: border === 40 ? 0.2 : border === 12 ? -0.2 : 0};
   const r = FG.build(wasm, p);
   if (r.errors.length) { console.log(style, border, 'ERR', r.errors.join(' ')); continue; }
   const st = Object.entries(r.parts).map(([k, m]) => {

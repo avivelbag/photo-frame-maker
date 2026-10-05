@@ -5,6 +5,13 @@ const FrameGeom = (() => {
   const REF_BORDER = 19;     // profile was drawn for a 19 mm moulding
   const CORNER_R = 0.8;
 
+  // Back-plate snap. Heights are in frame coords (back face z=0); the plate spans z 0..2.
+  // Each catch has a full-reach band from SNAP_SHELF to SNAP_BAND (3 layers at 0.2 mm), then a
+  // lead-in ramp to the inner face. It reaches SNAP_REACH (+ the fit offset) past the plate edge,
+  // i.e. about 0.8 mm past the pocket wall once the 0.2 mm clearance is taken off.
+  const SNAP_SHELF = 0.7, SNAP_BAND = 1.2, SNAP_REACH = 1.0, PLATE_CLEAR = 0.2;
+  const GROOVE_DEPTH = 1.5;      // into the pocket wall; room for the tightest fit setting
+
   function deriveDims(p) {
     // p: {mode:'photo'|'outer', w, h, border, overlap, stack, clear}
     let sightW, sightH;
@@ -188,8 +195,11 @@ const FrameGeom = (() => {
     body = body.subtract(rab.extrude(1.0, 0, 0, [(d.rabW - 2) / d.rabW, (d.rabH - 2) / d.rabH]).translate([0, 0, d.rabD]));
 
     // grooves for the back plate catches (left + right walls)
-    const gl = Math.min(20, d.rabH * 0.25);
-    const g = Manifold.cube([1.0, gl, 1.4]).translate([d.rabW / 2 - 0.1, -gl / 2, 0.9]);
+    // groove ceiling slopes at 45 deg so it prints without overhang
+    const gl = Math.min(20, d.rabH * 0.25), wall = d.rabW / 2;
+    const gp = new wasm.CrossSection([[[wall - 0.1, SNAP_SHELF], [wall + GROOVE_DEPTH, SNAP_SHELF],
+                                       [wall + GROOVE_DEPTH, SNAP_BAND], [wall - 0.1, SNAP_BAND + GROOVE_DEPTH + 0.1]]]);
+    const g = gp.extrude(gl).rotate([90, 0, 0]).translate([0, gl / 2, 0]);
     body = body.subtract(g).subtract(g.mirror([1, 0, 0]));
 
     // pry notch, bottom centre
@@ -216,16 +226,22 @@ const FrameGeom = (() => {
 
   function backPlate(wasm, p, d) {
     const {Manifold, CrossSection} = wasm;
-    const c = 0.2;
+    const c = PLATE_CLEAR;
     const sw = d.rabW - 2 * c, sh = d.rabH - 2 * c, t = d.plateT;
+    const reach = SNAP_REACH + (p.fit || 0);
     let plate = rrect(wasm, sw, sh, 1.3).extrude(t);
-    const sl = Math.min(22, sh * 0.25);
+    // a slit behind each side edge turns it into a beam fixed at both ends that flexes inward;
+    // beam width is chosen to keep bending strain under ~1.5 % (PLA yields around 3 %)
+    const sl = Math.min(22, sh / 2 - 5), L = 2 * sl, flex = reach - c;
+    const beam = Math.max(1.0, Math.min(2.0, 0.015 * L * L / (12 * flex)));
+    const slitR = 0.7;
     for (const s of [-1, 1]) {
-      const slit = stadium(wasm, s * (sw / 2 - 2), -sl, s * (sw / 2 - 2), sl, 0.6);
-      plate = plate.subtract(slit.extrude(t + 2).translate([0, 0, -1]));
+      const x = s * (sw / 2 - beam - slitR);
+      plate = plate.subtract(stadium(wasm, x, -sl, x, sl, slitR).extrude(t + 2).translate([0, 0, -1]));
     }
     const e = sw / 2, cl = Math.min(16, sh * 0.2);
-    const prof = new CrossSection([[[e - 0.3, 0.9], [e + 0.6, 0.9], [e + 0.6, 1.2], [e, t], [e - 0.3, t]]]);
+    const prof = new CrossSection([[[e - 0.3, SNAP_SHELF], [e + reach, SNAP_SHELF], [e + reach, SNAP_BAND],
+                                    [e, t], [e - 0.3, t]]]);
     const ctch = prof.extrude(cl).rotate([90, 0, 0]).translate([0, cl / 2, 0]);
     plate = plate.add(ctch).add(ctch.mirror([1, 0, 0]));
     return plate.rotate([180, 0, 0]).translate([0, 0, t]);   // print inner face down
