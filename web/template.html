@@ -181,15 +181,16 @@
         <div class="seg seg3" role="radiogroup" aria-label="Back plate snap">
           <input type="radio" name="fit" id="fit-loose" value="-0.2"><label for="fit-loose">Looser</label>
           <input type="radio" name="fit" id="fit-std" value="0" checked><label for="fit-std">Standard</label>
-          <input type="radio" name="fit" id="fit-tight" value="0.2"><label for="fit-tight">Tighter</label>
+          <input type="radio" name="fit" id="fit-tight" value="0.15"><label for="fit-tight">Tighter</label>
         </div>
-        <p class="hint" style="margin-top:8px">If the back plate is hard to press in, choose Looser. If it falls out, choose Tighter. Each step moves the catches 0.2 mm.</p>
+        <p class="hint" style="margin-top:8px">If the back plate is hard to press in, choose Looser. If it falls out, choose Tighter. Standard catches reach 0.75 mm into the frame's grooves.</p>
         <p class="hint" style="margin-top:8px">The moulding covers the overlap on each edge of the photo. The pocket depth is how much can sit in front of the back plate: the photo plus an optional clear sheet or card.</p>
       </details>
 
       <fieldset>
         <legend>Include</legend>
         <div class="checks">
+          <label><input type="checkbox" id="frame" checked><span>Frame<small>Untick to print only a replacement back plate or stand for a frame you already have.</small></span></label>
           <label><input type="checkbox" id="plate" checked><span>Snap-in back plate<small>Flexing catches click into grooves in the pocket.</small></span></label>
           <label><input type="checkbox" id="stand" checked><span>Desk stand<small>Leans the frame back 12°.</small></span></label>
           <label><input type="checkbox" id="keyhole" checked><span>Keyhole for wall hanging<small>Screw head up to 7 mm, shank up to 3.6 mm.</small></span></label>
@@ -295,7 +296,7 @@ function params() {
   const mode = document.querySelector('input[name=mode]:checked').value;
   const n = id => parseFloat($(id).value);
   return {mode, w: n('w'), h: n('h'), border: n('border'), overlap: n('overlap'), stack: n('stack'),
-          style, fit: parseFloat(document.querySelector('input[name=fit]:checked').value), plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
+          style, frame: $('frame').checked, fit: parseFloat(document.querySelector('input[name=fit]:checked').value), plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
 }
 
 function syncLabels() {
@@ -415,8 +416,7 @@ function showView() {
   }
   document.querySelectorAll('.tab').forEach(t => {
     t.setAttribute('aria-selected', t.dataset.view === view ? 'true' : 'false');
-    const part = t.dataset.view === 'back' || t.dataset.view === 'front' ? 'frame' : t.dataset.view;
-    t.hidden = !geoms[t.dataset.view] && part !== 'frame';
+    t.hidden = !geoms[t.dataset.view];
   });
   render();
 }
@@ -462,6 +462,7 @@ async function build() {
   try {
     if (![p.w, p.h, p.border, p.overlap, p.stack].every(Number.isFinite)) throw {user: ['Fill in every size field with a number.']};
     const wasm = await engine();
+    if (!p.frame && !p.plate && !p.stand) throw {user: ['Choose at least one part to print.']};
     const r = FrameGeom.build(wasm, p);
     drawProfile(p, r.errors.length ? null : r.dims);
     if (r.errors.length) throw {user: r.errors};
@@ -475,7 +476,7 @@ async function build() {
       const bb = m.boundingBox();
       stats[name] = {vol: m.volume(), area: m.surfaceArea(), x: bb.max[0] - bb.min[0], y: bb.max[1] - bb.min[1]};
     }
-    if (!geoms[view]) view = 'front';
+    if (!geoms[view]) view = ['front', 'back_plate', 'stand'].find(v => geoms[v]);
     latest = {params: p, dims: r.dims, files, stats, keyhole: r.keyhole};
     $('errors').hidden = true;
     $('download').disabled = false;
@@ -518,9 +519,10 @@ function showSpecs() {
     cell(`≈ ${fmt(g, 0)} g`, 'PLA for selected parts'),
     `<div class="spec"><b><span class="pill ${fits ? 'ok' : 'bad'}">${fits ? 'Fits' : 'Too big'}</span></b><span>P1S bed, 256 × 256 mm</span></div>`,
   ].join('');
-  const notes = ['Print the frame back-down and the other parts as exported. Nothing needs supports.'];
+  const notes = [p.frame ? 'Print the frame back-down and the other parts as exported. Nothing needs supports.' : 'Print the parts as exported. Nothing needs supports.'];
   if (!fits) notes.push('At least one part is larger than the P1S bed. Reduce the size or the moulding width.');
-  if (p.keyhole && !latest.keyhole) notes.push('The moulding is too narrow for the keyhole, so it was left off. Use a width of at least about 18 mm to get it.');
+  if (!p.frame) notes.push('To fit a frame you already printed, use the same size, moulding width and photo overlap you used for it. The back plate is sized from those.');
+  if (p.frame && p.keyhole && !latest.keyhole) notes.push('The moulding is too narrow for the keyhole, so it was left off. Use a width of at least about 18 mm to get it.');
   $('notes').textContent = notes.join(' ');
 }
 

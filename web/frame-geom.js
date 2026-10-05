@@ -6,11 +6,12 @@ const FrameGeom = (() => {
   const CORNER_R = 0.8;
 
   // Back-plate snap. Heights are in frame coords (back face z=0); the plate spans z 0..2.
-  // Each catch has a full-reach band from SNAP_SHELF to SNAP_BAND (3 layers at 0.2 mm), then a
-  // lead-in ramp to the inner face. It reaches SNAP_REACH (+ the fit offset) past the plate edge,
-  // i.e. about 0.8 mm past the pocket wall once the 0.2 mm clearance is taken off.
-  const SNAP_SHELF = 0.7, SNAP_BAND = 1.2, SNAP_REACH = 1.0, PLATE_CLEAR = 0.2;
-  const GROOVE_DEPTH = 1.5;      // into the pocket wall; room for the tightest fit setting
+  // The frame groove is the original v1 groove (0.9 mm deep, z 0.9..2.3), kept so new plates fit
+  // frames that were already printed. Each catch has a full-reach band SNAP_SHELF..SNAP_BAND,
+  // then a lead-in ramp to the inner face, and reaches SNAP_REACH (+ the fit offset) past the
+  // plate edge: 0.75 mm past the pocket wall once the 0.2 mm clearance is taken off.
+  const GROOVE_Z0 = 0.9, GROOVE_Z1 = 2.3, GROOVE_DEPTH = 0.9;
+  const SNAP_SHELF = 0.95, SNAP_BAND = 1.35, SNAP_REACH = 0.95, PLATE_CLEAR = 0.2;
 
   function deriveDims(p) {
     // p: {mode:'photo'|'outer', w, h, border, overlap, stack, clear}
@@ -195,11 +196,8 @@ const FrameGeom = (() => {
     body = body.subtract(rab.extrude(1.0, 0, 0, [(d.rabW - 2) / d.rabW, (d.rabH - 2) / d.rabH]).translate([0, 0, d.rabD]));
 
     // grooves for the back plate catches (left + right walls)
-    // groove ceiling slopes at 45 deg so it prints without overhang
-    const gl = Math.min(20, d.rabH * 0.25), wall = d.rabW / 2;
-    const gp = new wasm.CrossSection([[[wall - 0.1, SNAP_SHELF], [wall + GROOVE_DEPTH, SNAP_SHELF],
-                                       [wall + GROOVE_DEPTH, SNAP_BAND], [wall - 0.1, SNAP_BAND + GROOVE_DEPTH + 0.1]]]);
-    const g = gp.extrude(gl).rotate([90, 0, 0]).translate([0, gl / 2, 0]);
+    const gl = Math.min(20, d.rabH * 0.25);
+    const g = Manifold.cube([GROOVE_DEPTH + 0.1, gl, GROOVE_Z1 - GROOVE_Z0]).translate([d.rabW / 2 - 0.1, -gl / 2, GROOVE_Z0]);
     body = body.subtract(g).subtract(g.mirror([1, 0, 0]));
 
     // pry notch, bottom centre
@@ -266,9 +264,11 @@ const FrameGeom = (() => {
     const errors = validate(p, d, d.prof);
     if (errors.length) return {dims: d, errors};
     const out = {dims: d, errors: [], parts: {}};
-    const f = frame(wasm, p, d);
-    out.parts.frame = f.mesh;
-    out.keyhole = f.keyhole;
+    if (p.frame !== false) {
+      const f = frame(wasm, p, d);
+      out.parts.frame = f.mesh;
+      out.keyhole = f.keyhole;
+    }
     if (p.plate) out.parts.back_plate = backPlate(wasm, p, d);
     if (p.stand) out.parts.stand = stand(wasm, p, d);
     return out;

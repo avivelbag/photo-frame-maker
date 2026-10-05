@@ -38,7 +38,7 @@ Every style stretches to the moulding width you choose, from 12 to 40 mm. All co
 3. **Fit details** (optional):
    - *Photo overlap* is how much of each photo edge the moulding covers. The default is 2.5 mm.
    - *Room for photo + glazing* is how much fits in front of the back plate. The default is 2.2 mm.
-4. **Choose the parts:** back plate, stand and keyhole.
+4. **Choose the parts:** frame, back plate, stand and keyhole. Untick *Frame* to get only a replacement back plate or stand.
    - *Back plate snap* (Looser / Standard / Tighter) adjusts how hard the back plate grips.
 5. **Check the preview:**
    - The 3D view lets you drag to turn and scroll to zoom. Tabs switch between the frame front, frame back, back plate and stand.
@@ -54,10 +54,11 @@ The page refuses settings that can't be printed well:
 
 - **Photo pocket:** cut from the back, 1 mm larger than the photo. It has a 45° taper under the lip, so the overhang is only about 2 mm and needs no supports.
 - **Back plate:** 2 mm thick. Slits along its left and right edges turn them into flexible beams, each about 2 mm wide. Each beam carries a catch that clicks into a groove in the pocket wall.
-  - The catch reaches 0.8 mm past the pocket wall. Its gripping edge is 0.5 mm tall, which is 2–3 layers at 0.2 mm, and above that is a ramp that guides it in.
-  - The groove has a 45° ceiling, so it prints without overhang.
+  - The catch reaches 0.75 mm past the pocket wall. Its gripping edge is 0.4 mm tall, and above that is a ramp that guides it in.
+  - The groove in the frame is 0.9 mm deep and runs from z 0.9 to 2.3. It's unchanged from the first version, so new plates fit frames that were already printed.
   - The plate prints inner-face-down so the ramps need no support.
-  - *Back plate snap* in the web generator moves the catches 0.2 mm looser or tighter to suit your printer.
+  - *Back plate snap* in the web generator sets how far the catches reach past the pocket wall: Looser 0.55 mm, Standard 0.75 mm, Tighter 0.9 mm.
+  - To print only a replacement plate, untick *Frame* and use the same size, moulding width and photo overlap as the frame.
   - To remove the plate, pry at the notch in the bottom edge.
 - **Keyhole:** centred in the top border, for a screw with a head up to 7 mm and a shank up to 3.6 mm.
 - **Stand:** a smooth, pebble-shaped base whose slot leans the frame back 12°. The slot width follows the depth of the chosen style.
@@ -69,7 +70,7 @@ The page refuses settings that can't be printed well:
 - Wood-fill, matte or silk PLA all suit the mouldings.
 - **Print history:**
   - The first print (2026-10-05) showed the original snap was far too weak. Its catches only reached 0.4 mm past the wall, and the back plate barely held.
-  - The snap was redesigned as described under *Back plate* above. The redesign hasn't been printed yet.
+  - Only the plate was redesigned, as described under *Back plate* above; the frame is unchanged. The new plate hasn't been printed yet.
   - If the plate is too hard to press in, or still loose, change *Back plate snap* in the web generator.
   - The stand slot (0.6 mm slack) is also unprinted.
 

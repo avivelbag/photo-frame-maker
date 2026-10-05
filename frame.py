@@ -28,10 +28,11 @@ LIP_TAPER = 1.0        # 45 deg underside taper on the lip
 PLATE_T = 2.0          # back plate thickness
 CLEAR = 0.2            # per-side fit clearance
 CORNER_R = 0.8         # corner rounding along the mitre
-# back-plate snap (frame coords): full-reach band SNAP_SHELF..SNAP_BAND, lead-in ramp above it
-SNAP_SHELF, SNAP_BAND = 0.7, 1.2
-SNAP_REACH = 1.0       # past the plate edge = 0.8 mm past the pocket wall
-GROOVE_DEPTH = 1.5
+# back-plate snap (frame coords). The groove is the original v1 groove, kept so new plates
+# fit frames already printed. Catch: full-reach band SNAP_SHELF..SNAP_BAND, lead-in ramp above.
+GROOVE_Z0, GROOVE_Z1, GROOVE_DEPTH = 0.9, 2.3, 0.9
+SNAP_SHELF, SNAP_BAND = 0.95, 1.35
+SNAP_REACH = 0.95      # past the plate edge = 0.75 mm past the pocket wall
 EPS = 0.01
 
 BORDER = (OUTER - WINDOW) / 2      # 19 mm of moulding
@@ -121,12 +122,7 @@ def frame():
     body -= extrude(rab, LIP_TAPER, RABBET_D, (s, s))
 
     # snap grooves for the back-plate catches (left + right walls)
-    # (45 deg groove ceiling, so no overhang)
-    from shapely.geometry import Polygon
-    w = RABBET / 2
-    gp = Polygon([(w - 0.1, SNAP_SHELF), (w + GROOVE_DEPTH, SNAP_SHELF), (w + GROOVE_DEPTH, SNAP_BAND),
-                  (w - 0.1, SNAP_BAND + GROOVE_DEPTH + 0.1)])
-    g = Manifold.extrude(to_cs(gp), 20).rotate((90, 0, 0)).translate((0, 10, 0))
+    g = Manifold.cube((GROOVE_DEPTH + 0.1, 20, GROOVE_Z1 - GROOVE_Z0)).translate((RABBET / 2 - 0.1, -10, GROOVE_Z0))
     body -= g + g.mirror((1, 0, 0))
 
     # pry notch, bottom centre, to pop the back plate out
