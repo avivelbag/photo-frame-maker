@@ -40,3 +40,16 @@ A keyhole in the back of the top border takes a screw with a head up to 7 mm and
 pip install manifold3d shapely numpy matplotlib
 python frame.py && python preview.py
 ```
+
+## Web interface
+
+`web/` holds a browser version of the generator: pick a photo or outer size, preview it in 3D and download a ZIP of STLs. It's published as an artifact at https://claude.ai/artifact/RCTT4QFAspR1fjSfJS8wiC.
+
+- `frame-geom.js` is the JS port of `frame.py`. It runs on manifold-3d's WASM build.
+- `template.html` is the page.
+- `build.py` inlines the manifold glue, the WASM binary and the geometry file into `photo-frame-maker.html`.
+- `test.mjs` builds three sizes in Node as a check.
+
+```
+cd web && npm install && python3 build.py && node test.mjs
+```

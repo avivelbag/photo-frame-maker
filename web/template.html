@@ -1,0 +1,514 @@
+<title>Photo Frame Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #e9ece7;
+    --surface: #f7f8f4;
+    --ink: #1d2420;
+    --muted: #5d6761;
+    --line: #cfd5cd;
+    --accent: #2f6a52;
+    --accent-ink: #ffffff;
+    --accent-soft: #dbe8e0;
+    --wood: #b98a5c;
+    --pocket: #e9ece7;
+    --ok: #2f6a52;
+    --warn: #a4521f;
+    --warn-soft: #f6e4d8;
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #131815; --surface: #1b211e; --ink: #e5eae6; --muted: #9aa69f; --line: #2d3631;
+      --accent: #78b597; --accent-ink: #0f1a14; --accent-soft: #233a2e; --wood: #b98a5c; --pocket: #131815;
+      --ok: #78b597; --warn: #e39a6a; --warn-soft: #3a261a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #131815; --surface: #1b211e; --ink: #e5eae6; --muted: #9aa69f; --line: #2d3631;
+    --accent: #78b597; --accent-ink: #0f1a14; --accent-soft: #233a2e; --wood: #b98a5c; --pocket: #131815;
+    --ok: #78b597; --warn: #e39a6a; --warn-soft: #3a261a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink); font: 14px/1.5 var(--body);
+    padding: 24px 16px 40px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+  header h1 { font: 600 clamp(26px, 4vw, 36px)/1.1 var(--display); margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+  header p { margin: 0; color: var(--muted); max-width: 64ch; }
+
+  .layout { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 18px; }
+  fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+  legend, .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0; margin-bottom: 2px; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--ground); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { text-align: center; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-weight: 500; color: var(--muted); }
+  .seg input:checked + label { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 4px 10px; font: 500 12px var(--body); cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .chip small { color: var(--muted); font-family: var(--mono); font-size: 11px; margin-left: 4px; }
+
+  .dims { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+  .num { display: grid; gap: 4px; }
+  .num span { font-size: 12px; color: var(--muted); }
+  .num .box { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; background: var(--ground); padding: 0 10px; }
+  .num .box:focus-within { border-color: var(--accent); }
+  .num input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 500 16px var(--mono); padding: 8px 0; outline: none; font-variant-numeric: tabular-nums; }
+  .num em { font-style: normal; color: var(--muted); font: 12px var(--mono); }
+  .swap { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 7px; height: 40px; width: 40px; cursor: pointer; font-size: 16px; }
+  .swap:hover { color: var(--ink); border-color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin: 0; }
+
+  .slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+  .slider .val { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
+  input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  .profile { width: 100%; height: 118px; display: block; background: var(--ground); border-radius: 8px; }
+
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; font-weight: 500; }
+  details[open] summary { margin-bottom: 12px; }
+  details .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .checks { display: grid; gap: 8px; }
+  .checks label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .checks input { accent-color: var(--accent); width: 16px; height: 16px; margin-top: 2px; }
+  .checks small { display: block; color: var(--muted); font-size: 12px; }
+
+  .dl { border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: 600 15px var(--body); padding: 12px 16px; cursor: pointer; }
+  .dl:hover { filter: brightness(1.06); }
+  .dl:disabled { opacity: 0.5; cursor: default; }
+  .dl:focus-visible, .chip:focus-visible, .swap:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .status { font-size: 12px; color: var(--muted); min-height: 1.5em; margin: -8px 0 0; }
+  .errors { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 0; }
+
+  .stage { display: grid; gap: 12px; min-width: 0; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tab { border: 0; background: transparent; color: var(--muted); font: 500 13px var(--body); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+  .viewport { position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 10px; overflow: hidden; background: #2c5a46; touch-action: none; cursor: grab; }
+  .viewport:active { cursor: grabbing; }
+  .viewport canvas { display: block; width: 100%; height: 100%; }
+  .viewport .badge { position: absolute; left: 12px; bottom: 10px; color: #e6efe9; font: 12px var(--mono); opacity: 0.85; pointer-events: none; }
+  .viewport .busy { position: absolute; right: 12px; top: 10px; color: #e6efe9; font: 12px var(--mono); }
+
+  .specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .spec { background: var(--surface); padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+  @media (max-width: 560px) { .specs { grid-template-columns: repeat(2, 1fr); } }
+  .spec b { white-space: nowrap; font: 500 15px var(--mono); font-variant-numeric: tabular-nums; }
+  .spec span { font-size: 12px; color: var(--muted); }
+  .pill { display: inline-block; font: 600 11px var(--body); letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .pill.ok { background: var(--accent-soft); color: var(--ok); }
+  .pill.bad { background: var(--warn-soft); color: var(--warn); }
+  .notes { color: var(--muted); font-size: 13px; margin: 0; max-width: 75ch; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Photo Frame Maker</h1>
+    <p>Enter a photo size or a finished frame size. Check the preview, then download print-ready STLs for a Bambu P1S: the moulded frame, a snap-in back plate and a desk stand.</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel" id="form" autocomplete="off">
+      <fieldset>
+        <legend>Size by</legend>
+        <div class="seg" role="radiogroup">
+          <input type="radio" name="mode" id="mode-photo" value="photo" checked><label for="mode-photo">Photo size</label>
+          <input type="radio" name="mode" id="mode-outer" value="outer"><label for="mode-outer">Outer frame size</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Common sizes</legend>
+        <div class="chips" id="presets"></div>
+      </fieldset>
+
+      <fieldset>
+        <div class="dims">
+          <label class="num"><span id="w-label">Photo width</span><div class="box"><input id="w" type="number" inputmode="decimal" min="20" max="400" step="0.5" value="87"><em>mm</em></div></label>
+          <button type="button" class="swap" id="swap" title="Swap width and height" aria-label="Swap width and height">⇄</button>
+          <label class="num"><span id="h-label">Photo height</span><div class="box"><input id="h" type="number" inputmode="decimal" min="20" max="400" step="0.5" value="87"><em>mm</em></div></label>
+        </div>
+        <p class="hint" id="size-hint">Width × height as the frame will hang. The keyhole goes on the top edge.</p>
+      </fieldset>
+
+      <fieldset>
+        <div class="slider">
+          <label class="label" for="border">Moulding width</label>
+          <span class="val" id="border-val">19 mm</span>
+          <input type="range" id="border" min="12" max="40" step="0.5" value="19">
+        </div>
+        <svg class="profile" id="profile" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Moulding cross-section"></svg>
+      </fieldset>
+
+      <details>
+        <summary>Fit details</summary>
+        <div class="grid2">
+          <label class="num"><span>Photo overlap per side</span><div class="box"><input id="overlap" type="number" min="1" max="8" step="0.5" value="2.5"><em>mm</em></div></label>
+          <label class="num"><span>Room for photo + glazing</span><div class="box"><input id="stack" type="number" min="0.5" max="4" step="0.1" value="2.2"><em>mm</em></div></label>
+        </div>
+        <p class="hint" style="margin-top:8px">The moulding covers the overlap on each edge of the photo. The pocket depth is how much can sit in front of the back plate: the photo plus an optional clear sheet or card.</p>
+      </details>
+
+      <fieldset>
+        <legend>Include</legend>
+        <div class="checks">
+          <label><input type="checkbox" id="plate" checked><span>Snap-in back plate<small>Flexing catches click into grooves in the pocket.</small></span></label>
+          <label><input type="checkbox" id="stand" checked><span>Desk stand<small>Leans the frame back 12°.</small></span></label>
+          <label><input type="checkbox" id="keyhole" checked><span>Keyhole for wall hanging<small>Screw head up to 7 mm, shank up to 3.6 mm.</small></span></label>
+        </div>
+      </fieldset>
+
+      <p class="errors" id="errors" hidden></p>
+      <button type="submit" class="dl" id="download" disabled>Download STLs (.zip)</button>
+      <p class="status" id="status" aria-live="polite">Loading the geometry engine…</p>
+    </form>
+
+    <section class="stage" aria-label="Preview">
+      <div class="tabs" role="tablist" id="tabs">
+        <button type="button" class="tab" role="tab" data-view="front" aria-selected="true">Frame</button>
+        <button type="button" class="tab" role="tab" data-view="back" aria-selected="false">Frame back</button>
+        <button type="button" class="tab" role="tab" data-view="back_plate" aria-selected="false">Back plate</button>
+        <button type="button" class="tab" role="tab" data-view="stand" aria-selected="false">Stand</button>
+      </div>
+      <div class="viewport" id="viewport">
+        <span class="badge">Drag to turn · scroll to zoom · 10 mm grid</span>
+        <span class="busy" id="busy" hidden>Building…</span>
+      </div>
+      <div class="specs" id="specs"></div>
+      <p class="notes" id="notes"></p>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script id="wasm-b64" type="application/octet-stream">/*WASM_B64*/</script>
+<script>
+/*FRAME_GEOM*/
+</script>
+<script type="module">
+/*MANIFOLD_GLUE*/
+
+const MANIFOLD_FACTORY = Module;
+const $ = id => document.getElementById(id);
+
+// ------------------------------------------------------------ presets
+const PRESETS = [
+  {label: '4×6 in', mode: 'photo', w: 101.6, h: 152.4},
+  {label: '5×7 in', mode: 'photo', w: 127, h: 177.8},
+  {label: '3.5×5 in', mode: 'photo', w: 88.9, h: 127},
+  {label: 'Instax Mini', mode: 'photo', w: 54, h: 86},
+  {label: 'Instax Square', mode: 'photo', w: 72, h: 86},
+  {label: 'Polaroid', mode: 'photo', w: 88, h: 107},
+  {label: '120 mm square', mode: 'outer', w: 120, h: 120, sub: 'outer'},
+];
+const presetBox = $('presets');
+PRESETS.forEach((p, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.i = i; b.setAttribute('aria-pressed', 'false');
+  b.textContent = p.label;
+  presetBox.appendChild(b);
+});
+presetBox.addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const p = PRESETS[+b.dataset.i];
+  $('mode-' + p.mode).checked = true;
+  $('w').value = p.w; $('h').value = p.h;
+  syncLabels(); schedule();
+});
+
+function params() {
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  const n = id => parseFloat($(id).value);
+  return {mode, w: n('w'), h: n('h'), border: n('border'), overlap: n('overlap'), stack: n('stack'),
+          plate: $('plate').checked, stand: $('stand').checked, keyhole: $('keyhole').checked};
+}
+
+function syncLabels() {
+  const p = params();
+  const word = p.mode === 'photo' ? 'Photo' : 'Outer';
+  $('w-label').textContent = word + ' width';
+  $('h-label').textContent = word + ' height';
+  $('border-val').textContent = p.border + ' mm';
+  presetBox.querySelectorAll('.chip').forEach(b => {
+    const q = PRESETS[+b.dataset.i];
+    const on = q.mode === p.mode && Math.abs(q.w - p.w) < 0.05 && Math.abs(q.h - p.h) < 0.05;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+$('swap').addEventListener('click', () => {
+  const w = $('w').value; $('w').value = $('h').value; $('h').value = w; schedule();
+});
+$('form').addEventListener('input', () => { syncLabels(); schedule(); });
+$('form').addEventListener('change', () => { syncLabels(); schedule(); });
+
+// ------------------------------------------------------------ profile diagram
+function drawProfile(p, d) {
+  const svg = $('profile');
+  const prof = FrameGeom.profile(p.border);
+  const B = p.border, Z = 11.6, s = 7;
+  const pad = 10, W = B * s + 2 * pad, H = Z * s + pad + 22;
+  svg.setAttribute('viewBox', `0 0 ${W.toFixed(1)} ${H.toFixed(1)}`);
+  const ox = pad, oy = pad + Z * s;
+  const pt = ([x, z]) => `${(ox + x * s).toFixed(1)},${(oy - z * s).toFixed(1)}`;
+  const r0 = d ? d.rabInset : B - 3, rd = d ? d.rabD : 4.2;
+  const pocket = [[r0, 0], [B, 0], [B, rd + 1], [r0 + 1, rd + 1], [r0, rd]].map(pt).join(' ');
+  const label = (x, anchor, text) =>
+    `<text x="${x}" y="${H - 6}" text-anchor="${anchor}" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--muted)">${text}</text>`;
+  svg.innerHTML = `
+    <polygon points="${prof.map(pt).join(' ')}" fill="var(--wood)" stroke="var(--ink)" stroke-opacity="0.45" stroke-width="0.8"/>
+    <polygon points="${pocket}" fill="var(--ground)"/>
+    ${label(ox, 'start', '← outer edge')}${label(ox + B * s, 'end', 'photo →')}`;
+}
+
+// ------------------------------------------------------------ 3D view
+const vp = $('viewport');
+const renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+vp.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2c5a46);
+const camera = new THREE.PerspectiveCamera(32, 4 / 3, 1, 5000);
+camera.up.set(0, 0, 1);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x334433, 0.65));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-120, -160, 260); scene.add(sun);
+const rim = new THREE.DirectionalLight(0xffffff, 0.25); rim.position.set(200, 150, 80); scene.add(rim);
+
+// cutting mat
+(function mat() {
+  const c = document.createElement('canvas'); c.width = c.height = 1024;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2c5a46'; g.fillRect(0, 0, 1024, 1024);
+  const step = 1024 / 60;   // 600 mm mat, 10 mm grid
+  for (let i = 0; i <= 60; i++) {
+    g.strokeStyle = i % 5 === 0 ? 'rgba(220,240,228,0.32)' : 'rgba(220,240,228,0.14)';
+    g.lineWidth = i % 5 === 0 ? 1.6 : 1;
+    g.beginPath(); g.moveTo(i * step, 0); g.lineTo(i * step, 1024); g.stroke();
+    g.beginPath(); g.moveTo(0, i * step); g.lineTo(1024, i * step); g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 8;
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshBasicMaterial({map: tex}));
+  plane.position.z = -0.05;
+  scene.add(plane);
+})();
+
+const material = new THREE.MeshStandardMaterial({color: 0xc29467, roughness: 0.62, metalness: 0.0, flatShading: true});
+const holder = new THREE.Group(); scene.add(holder);
+let geoms = {};       // view -> BufferGeometry
+let view = 'front';
+let yaw = -0.5, pitch = 0.78, zoom = 1;
+
+function fitCamera() {
+  const obj = holder.children[0];
+  if (!obj) return;
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z * 2) * 0.62 + 10;
+  const dist = r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * zoom;
+  camera.position.set(ctr.x + dist * Math.cos(pitch) * Math.sin(yaw),
+                      ctr.y - dist * Math.cos(pitch) * Math.cos(yaw),
+                      ctr.z + dist * Math.sin(pitch));
+  camera.lookAt(ctr);
+}
+function render() { fitCamera(); renderer.render(scene, camera); }
+function resize() {
+  const w = vp.clientWidth, h = vp.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); render();
+}
+new ResizeObserver(resize).observe(vp);
+
+let drag = null;
+vp.addEventListener('pointerdown', e => { drag = {x: e.clientX, y: e.clientY}; vp.setPointerCapture(e.pointerId); });
+vp.addEventListener('pointermove', e => {
+  if (!drag) return;
+  yaw += (e.clientX - drag.x) * 0.008;
+  pitch = Math.min(1.45, Math.max(0.08, pitch + (e.clientY - drag.y) * 0.006));
+  drag = {x: e.clientX, y: e.clientY}; render();
+});
+vp.addEventListener('pointerup', () => { drag = null; });
+vp.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.min(2.5, Math.max(0.35, zoom * Math.exp(e.deltaY * 0.001))); render(); }, {passive: false});
+
+function showView() {
+  holder.clear();
+  const g = geoms[view];
+  if (g) {
+    const m = new THREE.Mesh(g, material);
+    if (view === 'back') m.rotation.x = Math.PI;   // flip to look at the back
+    holder.add(m);
+    if (view === 'back') { m.updateMatrixWorld(); const b = new THREE.Box3().setFromObject(m); m.position.z = -b.min.z; }
+  }
+  document.querySelectorAll('.tab').forEach(t => {
+    t.setAttribute('aria-selected', t.dataset.view === view ? 'true' : 'false');
+    const part = t.dataset.view === 'back' || t.dataset.view === 'front' ? 'frame' : t.dataset.view;
+    t.hidden = !geoms[t.dataset.view] && part !== 'frame';
+  });
+  render();
+}
+$('tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return;
+  view = t.dataset.view; zoom = 1; showView();
+});
+
+function toGeometry(mesh) {
+  const V = mesh.vertProperties, T = mesh.triVerts, np = mesh.numProp;
+  const pos = new Float32Array(T.length * 3);
+  for (let i = 0; i < T.length; i++) pos.set(V.subarray(T[i] * np, T[i] * np + 3), i * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// ------------------------------------------------------------ geometry engine
+// A fresh wasm instance per build keeps memory flat: the old one is simply dropped.
+const wasmBytes = Uint8Array.from(atob($('wasm-b64').textContent.trim()), c => c.charCodeAt(0));
+const compiled = WebAssembly.compile(wasmBytes);
+async function engine() {
+  const mod = await compiled;
+  const wasm = await MANIFOLD_FACTORY({
+    instantiateWasm(imports, done) { WebAssembly.instantiate(mod, imports).then(inst => done(inst)); return {}; },
+  });
+  wasm.setup();
+  return wasm;
+}
+
+let latest = null;       // {params, dims, files: {name: ArrayBuffer}}
+let timer = null, building = false, again = false;
+function schedule() { clearTimeout(timer); timer = setTimeout(build, 180); }
+
+const fmt = (v, dp = 1) => (Math.round(v * 10 ** dp) / 10 ** dp).toFixed(dp).replace(/\.0+$/, '');
+const inch = v => fmt(v / 25.4, 2) + ' in';
+
+async function build() {
+  if (building) { again = true; return; }
+  building = true; $('busy').hidden = false;
+  const p = params();
+  try {
+    if (![p.w, p.h, p.border, p.overlap, p.stack].every(Number.isFinite)) throw {user: ['Fill in every size field with a number.']};
+    const wasm = await engine();
+    const r = FrameGeom.build(wasm, p);
+    drawProfile(p, r.errors.length ? null : r.dims);
+    if (r.errors.length) throw {user: r.errors};
+    const files = {}, stats = {};
+    geoms = {};
+    for (const [name, m] of Object.entries(r.parts)) {
+      const mesh = m.getMesh();
+      const g = toGeometry(mesh);
+      if (name === 'frame') { geoms.front = g; geoms.back = g; } else geoms[name] = g;
+      files[name + '.stl'] = FrameGeom.toSTL(m, name);
+      const bb = m.boundingBox();
+      stats[name] = {vol: m.volume(), area: m.surfaceArea(), x: bb.max[0] - bb.min[0], y: bb.max[1] - bb.min[1]};
+    }
+    if (!geoms[view]) view = 'front';
+    latest = {params: p, dims: r.dims, files, stats, keyhole: r.keyhole};
+    $('errors').hidden = true;
+    $('download').disabled = false;
+    $('status').textContent = '';
+    showView(); showSpecs();
+  } catch (err) {
+    if (err && err.user) {
+      $('errors').textContent = err.user.join(' ');
+      $('errors').hidden = false;
+      $('download').disabled = true;
+      $('status').textContent = '';
+    } else {
+      console.error(err);
+      $('errors').textContent = 'The model could not be built (' + (err && err.message || err) + '). Try a slightly different size.';
+      $('errors').hidden = false;
+    }
+  } finally {
+    building = false; $('busy').hidden = true;
+    if (again) { again = false; build(); }
+  }
+}
+
+function grams(s) {
+  // rough slicer estimate: ~1.1 mm of solid shell under every surface, 15 % infill inside, PLA 1.24 g/cm³
+  const shell = Math.min(s.vol, s.area * 1.1 / 2);
+  return (shell + (s.vol - shell) * 0.15) / 1000 * 1.24;
+}
+
+function showSpecs() {
+  const {dims: d, stats, params: p} = latest;
+  const BED = 256, MARGIN = 6;
+  const fits = Object.values(stats).every(s => s.x <= BED - MARGIN && s.y <= BED - MARGIN);
+  const g = Object.values(stats).reduce((a, s) => a + grams(s), 0);
+  const cell = (val, label) => `<div class="spec"><b>${val}</b><span>${label}</span></div>`;
+  $('specs').innerHTML = [
+    cell(`${fmt(d.outerW)} × ${fmt(d.outerH)}`, 'Outer size, mm'),
+    cell(`${fmt(d.sightW)} × ${fmt(d.sightH)}`, 'Visible window, mm'),
+    cell(`${fmt(d.photoW)} × ${fmt(d.photoH)}`, `Cut photo to, mm<br>${inch(d.photoW)} × ${inch(d.photoH)}`),
+    cell('11.6', 'Frame depth, mm'),
+    cell(`≈ ${fmt(g, 0)} g`, 'PLA for selected parts'),
+    `<div class="spec"><b><span class="pill ${fits ? 'ok' : 'bad'}">${fits ? 'Fits' : 'Too big'}</span></b><span>P1S bed, 256 × 256 mm</span></div>`,
+  ].join('');
+  const notes = ['Print the frame back-down and the other parts as exported. Nothing needs supports.'];
+  if (!fits) notes.push('At least one part is larger than the P1S bed. Reduce the size or the moulding width.');
+  if (p.keyhole && !latest.keyhole) notes.push('The moulding is too narrow for the keyhole, so it was left off. Use a width of at least about 18 mm to get it.');
+  $('notes').textContent = notes.join(' ');
+}
+
+// ------------------------------------------------------------ download
+let downloads = null;
+window.claude?.use?.('downloads').then(d => { downloads = d; }).catch(() => {});
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!latest) return;
+  if (!downloads) {
+    $('status').textContent = 'Downloads are not available in this view. Open the page on claude.ai to save the files.';
+    return;
+  }
+  const {dims: d, files, params: p} = latest;
+  const zip = new JSZip();
+  const tag = `${fmt(d.outerW)}x${fmt(d.outerH)}mm`;
+  for (const [n, buf] of Object.entries(files)) zip.file(n, buf);
+  zip.file('README.txt', [
+    `Moulded photo frame, ${fmt(d.outerW)} x ${fmt(d.outerH)} mm outer`,
+    ``,
+    `Cut the photo to:  ${fmt(d.photoW)} x ${fmt(d.photoH)} mm`,
+    `Visible window:    ${fmt(d.sightW)} x ${fmt(d.sightH)} mm`,
+    `Moulding width:    ${p.border} mm`,
+    `Pocket room:       ${p.stack} mm in front of the back plate (photo + clear sheet or card)`,
+    ``,
+    `Printing (Bambu P1S, PLA): frame.stl back face down; back_plate.stl and stand.stl as exported.`,
+    `No supports needed. 0.12-0.16 mm layers keep the cove and beads smooth. 3 walls, 15% infill.`,
+    `Pop the back plate out with a fingernail at the notch on the bottom edge.`,
+  ].join('\n'));
+  const blob = await zip.generateAsync({type: 'blob', compression: 'DEFLATE'});
+  $('status').textContent = 'Waiting for you to confirm the save…';
+  try {
+    await downloads.save({filename: `photo-frame-${tag}.zip`, data: blob});
+    $('status').textContent = `Saved photo-frame-${tag}.zip.`;
+  } catch (err) {
+    const c = err && err.code;
+    $('status').textContent = c === 'declined' ? 'Save cancelled.'
+      : c === 'rate_limited' ? 'A save prompt is already open. Finish that one first.'
+      : 'This view cannot save files. Open the page on claude.ai and try again.';
+  }
+});
+
+syncLabels();
+drawProfile(params(), null);
+build();
+</script>
